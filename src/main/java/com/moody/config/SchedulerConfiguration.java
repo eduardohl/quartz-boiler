@@ -1,6 +1,7 @@
 package com.moody.config;
 
 import com.moody.job.JobExample;
+import org.quartz.CronTrigger;
 import org.quartz.Trigger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,11 +38,13 @@ public class SchedulerConfiguration {
 
     @Bean
     public JobDetailFactoryBean job() {
+        //Set job with process code
         JobDetailFactoryBean jobDetailFactoryBean = new JobDetailFactoryBean();
         jobDetailFactoryBean.setJobClass(JobExample.class);
         jobDetailFactoryBean.setName("JobExampleName");
         jobDetailFactoryBean.setGroup("JobExampleGroup");
 
+        //Set datamap
         Map<String, Object> jobData = new HashMap<>();
         jobData.put("parameterExample", "aggregation job value string");
         jobDetailFactoryBean.setJobDataAsMap(jobData);
@@ -49,18 +52,24 @@ public class SchedulerConfiguration {
         return jobDetailFactoryBean;
     }
 
-    @Bean
     /**
+     * Simple CronTrigger. The links below show how to create the scheduling string.
      * @see http://quartz-scheduler.org/documentation/quartz-2.x/tutorials/tutorial-lesson-06
      * @see http://www.quartz-scheduler.org/documentation/quartz-1.x/tutorials/crontrigger
      */
+    @Bean
     public CronTriggerFactoryBean cronTrigger() {
         CronTriggerFactoryBean cronTriggerFactoryBean = new CronTriggerFactoryBean();
         cronTriggerFactoryBean.setJobDetail(job().getObject());
-        cronTriggerFactoryBean.setCronExpression("0 * * * * ?"); // Every minute
+        cronTriggerFactoryBean.setCronExpression("0 * * * * ?"); // Fire job every minute
+        cronTriggerFactoryBean.setMisfireInstruction(CronTrigger.MISFIRE_INSTRUCTION_DO_NOTHING); //When trying to fire a job that cannot run (because of DisallowConcurrentExecution for example), just do nothing and abort this execution.
         return cronTriggerFactoryBean;
     }
 
+    /**
+     *  This bean represents the scheduler context, and should be central part of your job scheduling system.
+     *  It has all of your previously configured triggers and the configuration to be used.
+     */
     @Bean
     public SchedulerFactoryBean scheduler() {
         SchedulerFactoryBean schedulerFactoryBean = new SchedulerFactoryBean();
@@ -69,6 +78,7 @@ public class SchedulerConfiguration {
         //schedulerFactoryBean.setTransactionManager();
         //schedulerFactoryBean.setOverwriteExistingJobs(true);
         schedulerFactoryBean.setSchedulerName("JobSchedulerExampleName");
+        schedulerFactoryBean.setQuartzProperties(quartzProperties());
 
         // custom job factory of spring with DI support for @Autowired!
         AutowiringSpringBeanJobFactory jobFactory = new AutowiringSpringBeanJobFactory();
@@ -80,6 +90,10 @@ public class SchedulerConfiguration {
         return schedulerFactoryBean;
     }
 
+    /**
+     * Load Quartz properties configuration
+     * @return
+     */
     @Bean
     public Properties quartzProperties() {
         PropertiesFactoryBean propertiesFactoryBean = new PropertiesFactoryBean();
